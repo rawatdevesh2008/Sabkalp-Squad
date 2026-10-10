@@ -75,8 +75,12 @@ export function App() {
   }, []);
 
   // Update Score & Result state whenever a new scan inspection returns (from Camera or Copilot)
-  const handleInspectionResult = (result: InspectionResponse) => {
+  const handleInspectionResult = (result: InspectionResponse | null) => {
     setLastResult(result);
+    if (!result) {
+      setHasInspectedItem(false);
+      return;
+    }
     const isValidItem =
       Boolean(result.item_detected) &&
       result.item_detected !== 'None' &&
@@ -85,6 +89,8 @@ export function App() {
 
     if (isValidItem) {
       setHasInspectedItem(true);
+    } else {
+      setHasInspectedItem(false);
     }
 
     if (result.user_score) {

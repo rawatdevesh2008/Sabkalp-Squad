@@ -4,7 +4,7 @@ import { InspectionResult } from './InspectionResult';
 
 interface CameraInspectorProps {
   apiUrl: string;
-  onInspectionResult: (result: InspectionResponse) => void;
+  onInspectionResult: (result: InspectionResponse | null) => void;
   userId: string;
   wardId: string;
   externalResult?: InspectionResponse | null;
@@ -34,6 +34,18 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
 
   const [isCameraOn, setIsCameraOn] = useState(true);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Real-time Automatic Presence Detection State & References
+  const [isObjectDetectedLive, setIsObjectDetectedLive] = useState(false);
+  const detectorCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastObjectDetectedRef = useRef(false);
+  const detectionStreakRef = useRef(0);
+  const lastAutoAuditTimeRef = useRef(0);
+  const isProcessingRef = useRef(false);
+
+  useEffect(() => {
+    isProcessingRef.current = isProcessing;
+  }, [isProcessing]);
 
   // Stop Webcam stream cleanly releasing hardware media tracks
   const stopCamera = useCallback(() => {
@@ -297,12 +309,17 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
     [apiUrl, targetBin, userId, wardId, isProcessing, selectedPreset, onInspectionResult, drawOverlay]
   );
 
-  // 4. Clean State Reset: When clicking "Scan Another Item"
+  // 4. Clean State Reset: When clicking "Scan Another Item" or live feed reset
   // Completely clear the previous result banner and show the live camera feed ready for the next snapshot
   const handleReset = useCallback(() => {
     setLastResult(null);
     setPreviewImage(null);
     setSelectedPreset(null);
+    lastObjectDetectedRef.current = false;
+    detectionStreakRef.current = 0;
+    setIsObjectDetectedLive(false);
+    onInspectionResult(null);
+
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -314,7 +331,200 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
     if (isCameraOn && videoRef.current && videoRef.current.paused) {
       videoRef.current.play().catch(() => {});
     }
-  }, [isCameraOn]);
+  }, [isCameraOn, onInspectionResult]);
+
+  // 5. Draw High-Tech Targeting Reticle when an Object is First Detected in View
+  const drawTargetingReticle = useCallback((isLocked: boolean, label?: string) => {
+    const canvas = overlayCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Centered detection box: 54% width, 58% height
+    const boxW = Math.round(w * 0.54);
+    const boxH = Math.round(h * 0.58);
+    const x = Math.round((w - boxW) / 2);
+    const y = Math.round((h - boxH) / 2);
+
+    const strokeColor = isLocked ? '#10b981' : '#06b6d4';
+    const fillColor = isLocked ? 'rgba(16, 185, 129, 0.08)' : 'rgba(6, 182, 212, 0.08)';
+
+    // Ambient glow
+    ctx.save();
+    ctx.shadowColor = strokeColor;
+    ctx.shadowBlur = 18;
+
+    // Outer bounding box
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = strokeColor;
+    ctx.fillStyle = fillColor;
+    ctx.beginPath();
+    if (typeof (ctx as any).roundRect === 'function') {
+      (ctx as any).roundRect(x, y, boxW, boxH, 8);
+    } else {
+      ctx.rect(x, y, boxW, boxH);
+    }
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    // High-tech corner HUD brackets
+    const cornerSize = Math.max(16, Math.min(28, boxW * 0.12));
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#ffffff';
+
+    // Top-Left
+    ctx.beginPath();
+    ctx.moveTo(x, y + cornerSize);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x + cornerSize, y);
+    ctx.stroke();
+
+    // Top-Right
+    ctx.beginPath();
+    ctx.moveTo(x + boxW - cornerSize, y);
+    ctx.lineTo(x + boxW, y);
+    ctx.lineTo(x + boxW, y + cornerSize);
+    ctx.stroke();
+
+    // Bottom-Left
+    ctx.beginPath();
+    ctx.moveTo(x, y + boxH - cornerSize);
+    ctx.lineTo(x, y + boxH);
+    ctx.lineTo(x + cornerSize, y + boxH);
+    ctx.stroke();
+
+    // Bottom-Right
+    ctx.beginPath();
+    ctx.moveTo(x + boxW - cornerSize, y + boxH);
+    ctx.lineTo(x + boxW, y + boxH);
+    ctx.lineTo(x + boxW, y + boxH - cornerSize);
+    ctx.stroke();
+
+    // Center Crosshairs
+    const cx = x + boxW / 2;
+    const cy = y + boxH / 2;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - 16, cy);
+    ctx.lineTo(cx + 16, cy);
+    ctx.moveTo(cx, cy - 16);
+    ctx.lineTo(cx, cy + 16);
+    ctx.stroke();
+
+    // Badge label
+    const badgeText = label || (isLocked ? '⚡ OBJECT DETECTED • AUDITING' : '🎯 DETECTING OBJECT...');
+    const fontSize = Math.max(12, Math.round(w * 0.022));
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    const textWidth = ctx.measureText(badgeText).width;
+    const badgeHeight = fontSize + 12;
+
+    ctx.fillStyle = strokeColor;
+    ctx.fillRect(x, Math.max(0, y - badgeHeight - 4), textWidth + 18, badgeHeight);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(badgeText, x + 9, Math.max(fontSize + 2, y - 8));
+  }, []);
+
+  // 6. Client-side Computer Vision Presence Detection (analyzes center ROI variance vs peripheral corners)
+  const checkLiveFrameForObject = useCallback((): boolean => {
+    if (!videoRef.current || !isStreaming || !isCameraOn || previewImage) {
+      return false;
+    }
+    const video = videoRef.current;
+    if (video.videoWidth === 0 || video.videoHeight === 0 || video.paused || video.ended) {
+      return false;
+    }
+
+    if (!detectorCanvasRef.current) {
+      const c = document.createElement('canvas');
+      c.width = 160;
+      c.height = 120;
+      detectorCanvasRef.current = c;
+    }
+    const canvas = detectorCanvasRef.current;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return false;
+
+    try {
+      ctx.drawImage(video, 0, 0, 160, 120);
+      const imgData = ctx.getImageData(0, 0, 160, 120);
+      const data = imgData.data;
+
+      // 1. Center ROI (x: 40 to 120, y: 30 to 90) -> 50% width x 50% height
+      let centerLumaSum = 0;
+      let centerLumaSqSum = 0;
+      let centerEdgeEnergy = 0;
+      let centerCount = 0;
+
+      for (let y = 30; y < 90; y += 2) {
+        for (let x = 40; x < 120; x += 2) {
+          const idx = (y * 160 + x) * 4;
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+          const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+          centerLumaSum += luma;
+          centerLumaSqSum += luma * luma;
+
+          // Horizontal gradient with adjacent pixel
+          const rIdx = (y * 160 + (x + 1)) * 4;
+          const rLuma = 0.299 * data[rIdx] + 0.587 * data[rIdx + 1] + 0.114 * data[rIdx + 2];
+          // Vertical gradient with adjacent pixel
+          const bIdx = ((y + 1) * 160 + x) * 4;
+          const bLuma = 0.299 * data[bIdx] + 0.587 * data[bIdx + 1] + 0.114 * data[bIdx + 2];
+          centerEdgeEnergy += Math.abs(luma - rLuma) + Math.abs(luma - bLuma);
+
+          centerCount++;
+        }
+      }
+
+      if (centerCount === 0) return false;
+
+      const centerMean = centerLumaSum / centerCount;
+      const centerVar = (centerLumaSqSum / centerCount) - (centerMean * centerMean);
+      const avgEdge = centerEdgeEnergy / centerCount;
+
+      // Outlier conditions: lens covered (pitch black) or bleached bright light
+      if (centerMean < 12) return false;
+      if (centerMean > 245 && centerVar < 25) return false;
+
+      // 2. Peripheral Corner Background (sample 4 corners to establish ambient background)
+      let periLumaSum = 0;
+      let periCount = 0;
+      const corners = [
+        { x1: 6, x2: 30, y1: 6, y2: 24 },
+        { x1: 130, x2: 154, y1: 6, y2: 24 },
+        { x1: 6, x2: 30, y1: 96, y2: 114 },
+        { x1: 130, x2: 154, y1: 96, y2: 114 },
+      ];
+      for (const c of corners) {
+        for (let y = c.y1; y < c.y2; y += 2) {
+          for (let x = c.x1; x < c.x2; x += 2) {
+            const idx = (y * 160 + x) * 4;
+            const luma = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+            periLumaSum += luma;
+            periCount++;
+          }
+        }
+      }
+      const periMean = periLumaSum / (periCount || 1);
+      const contrastDiff = Math.abs(centerMean - periMean);
+
+      // Presence criteria:
+      // Object present if center variance, edge boundaries, or contrast against perimeter background is high
+      const isPresent = centerVar > 95 || avgEdge > 5.8 || (contrastDiff > 16 && centerVar > 55);
+      return isPresent;
+    } catch {
+      return false;
+    }
+  }, [isStreaming, isCameraOn, previewImage]);
 
   // 5. High-Resolution Canvas Capture & Manual Trigger
   const captureAndInspect = useCallback(async () => {
@@ -360,6 +570,81 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
       inspectImageBase64(imageBase64, undefined, null);
     }
   }, [previewImage, isProcessing, selectedPreset, inspectImageBase64]);
+
+  // 7. Real-Time Automatic Object Detection & Dynamic Frame Rendering Loop
+  // Automatically detects object in front of camera:
+  // - Frame automatically appears when an object is placed in front of camera
+  // - Frame automatically disappears when there is no object in front of camera
+  useEffect(() => {
+    if (!isCameraOn || !isStreaming || previewImage) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      const isPresent = checkLiveFrameForObject();
+
+      if (isPresent) {
+        detectionStreakRef.current = Math.min(3, detectionStreakRef.current + 1);
+      } else {
+        detectionStreakRef.current = Math.max(0, detectionStreakRef.current - 1);
+      }
+
+      const objectConfirmed = detectionStreakRef.current >= 2;
+
+      if (!objectConfirmed) {
+        // NO OBJECT IN FRONT OF CAMERA -> FRAME MUST DISAPPEAR IMMEDIATELY!
+        if (lastObjectDetectedRef.current) {
+          lastObjectDetectedRef.current = false;
+          setIsObjectDetectedLive(false);
+
+          // Clear overlay canvas immediately so frame disappears
+          const canvas = overlayCanvasRef.current;
+          if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx?.clearRect(0, 0, canvas.width, canvas.height);
+          }
+
+          // Clear result and notify parent to revert accuracy and contamination to 0
+          setLastResult(null);
+          onInspectionResult(null);
+        }
+      } else {
+        // OBJECT IS PRESENT IN FRONT OF CAMERA -> FRAME MUST APPEAR AUTOMATICALLY!
+        const justEntered = !lastObjectDetectedRef.current;
+        lastObjectDetectedRef.current = true;
+        setIsObjectDetectedLive(true);
+
+        // If an audited classification already exists for this item, display full bounding box
+        if (lastResult && lastResult.item_detected && lastResult.item_detected !== 'None' && lastResult.correct_bin !== 'Waiting for Item...') {
+          drawOverlay(lastResult);
+        } else {
+          // Object entered or waiting for classification: show high-tech auto-detection HUD frame
+          drawTargetingReticle(true, '⚡ OBJECT DETECTED • AUDITING BIN...');
+        }
+
+        const now = Date.now();
+        // Automatically trigger AI inspection when object enters or every 2.5s while present
+        if ((justEntered || now - lastAutoAuditTimeRef.current > 2500) && !isProcessingRef.current) {
+          lastAutoAuditTimeRef.current = now;
+          captureAndInspect();
+        }
+      }
+    }, 380);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [
+    isCameraOn,
+    isStreaming,
+    previewImage,
+    checkLiveFrameForObject,
+    drawOverlay,
+    drawTargetingReticle,
+    captureAndInspect,
+    lastResult,
+    onInspectionResult,
+  ]);
 
   // Handle local image file upload (loads image frame for manual inspection)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -521,7 +806,9 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
                   ? 'bg-cyan-400'
                   : !isCameraOn
                   ? 'bg-slate-400'
-                  : 'bg-emerald-400'
+                  : isObjectDetectedLive
+                  ? 'bg-emerald-400 animate-pulse'
+                  : 'bg-emerald-500/40 ring-1 ring-emerald-500/30'
               }`}
             />
             <span className="font-mono text-[11px] sm:text-xs">
@@ -531,7 +818,9 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
                 ? 'Frame Loaded • Ready'
                 : !isCameraOn
                 ? 'Camera Off • Standby'
-                : 'Live Camera • Active'}
+                : isObjectDetectedLive
+                ? '⚡ Object Detected • Frame Active'
+                : 'Live Camera • Auto-Detecting (No Object)'}
             </span>
           </div>
 

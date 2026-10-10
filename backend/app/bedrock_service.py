@@ -739,11 +739,24 @@ class BedrockService:
             elif "sanitary" in bin_lower or "landfill" in bin_lower or "black" in bin_lower:
                 item = dict(MOCK_ITEMS_BY_KEY["pizza"])
             elif image_bytes:
-                ordered_keys = ["bottle", "pizza", "phone", "battery", "milk", "wet"]
-                digest_idx = int(hashlib.md5(image_bytes).hexdigest()[:8], 16) % len(ordered_keys)
-                item = dict(MOCK_ITEMS_BY_KEY[ordered_keys[digest_idx]])
+                try:
+                    with Image.open(io.BytesIO(image_bytes)) as img:
+                        gray = img.convert("L").resize((64, 64))
+                        pixels = list(gray.getdata())
+                        mean_val = sum(pixels) / len(pixels)
+                        variance = sum((p - mean_val) ** 2 for p in pixels) / len(pixels)
+                        if variance < 80:
+                            item = dict(WAITING_STATE_ITEM)
+                        else:
+                            ordered_keys = ["bottle", "pizza", "phone", "battery", "milk", "wet"]
+                            digest_idx = int(hashlib.md5(image_bytes).hexdigest()[:8], 16) % len(ordered_keys)
+                            item = dict(MOCK_ITEMS_BY_KEY[ordered_keys[digest_idx]])
+                except Exception:
+                    ordered_keys = ["bottle", "pizza", "phone", "battery", "milk", "wet"]
+                    digest_idx = int(hashlib.md5(image_bytes).hexdigest()[:8], 16) % len(ordered_keys)
+                    item = dict(MOCK_ITEMS_BY_KEY[ordered_keys[digest_idx]])
             else:
-                item = dict(MOCK_ITEMS_BY_KEY["bottle"])
+                item = dict(WAITING_STATE_ITEM)
 
         engine_label = "ShieldBin Simulation Engine"
         if reason:
