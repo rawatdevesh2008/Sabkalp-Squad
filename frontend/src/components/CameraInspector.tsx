@@ -112,15 +112,19 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
   };
 
   // 2. Draw Green / Red Bounding Box on Overlay Canvas
-  const drawOverlay = useCallback((result: InspectionResponse) => {
+  // 2. Draw Green / Red Bounding Box on Overlay Canvas with Dynamic Detection
+  const drawOverlay = useCallback((result: InspectionResponse | null) => {
     const canvas = overlayCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Immediately clear overlay
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // If No Object is detected, do not draw bounding box overlay
+    if (!result) return;
+
+    // If No Object is detected, overlays must automatically disappear
     const isNoObject =
       !result.item_detected ||
       result.item_detected === 'None' ||
@@ -142,11 +146,16 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
     const height = ((ymax - ymin) / 1000) * canvas.height;
 
     const isGreen = result.box_color === 'green';
-    const strokeColor = isGreen ? '#22c55e' : '#ef4444';
-    const fillColor = isGreen ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+    const strokeColor = isGreen ? '#10b981' : '#f43f5e';
+    const fillColor = isGreen ? 'rgba(16, 185, 129, 0.12)' : 'rgba(244, 63, 94, 0.12)';
+
+    // Ambient glow
+    ctx.save();
+    ctx.shadowColor = strokeColor;
+    ctx.shadowBlur = 18;
 
     // Bounding Box
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 3;
     ctx.strokeStyle = strokeColor;
     ctx.fillStyle = fillColor;
     ctx.beginPath();
@@ -157,8 +166,42 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
     }
     ctx.fill();
     ctx.stroke();
+    ctx.restore();
 
-    // Badge Label Header
+    // Corner Reticle Brackets (High-Tech HUD styling)
+    const cornerSize = Math.max(12, Math.min(24, width * 0.15, height * 0.15));
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#ffffff';
+
+    // Top-Left
+    ctx.beginPath();
+    ctx.moveTo(x, y + cornerSize);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x + cornerSize, y);
+    ctx.stroke();
+
+    // Top-Right
+    ctx.beginPath();
+    ctx.moveTo(x + width - cornerSize, y);
+    ctx.lineTo(x + width, y);
+    ctx.lineTo(x + width, y + cornerSize);
+    ctx.stroke();
+
+    // Bottom-Left
+    ctx.beginPath();
+    ctx.moveTo(x, y + height - cornerSize);
+    ctx.lineTo(x, y + height);
+    ctx.lineTo(x + cornerSize, y + height);
+    ctx.stroke();
+
+    // Bottom-Right
+    ctx.beginPath();
+    ctx.moveTo(x + width - cornerSize, y + height);
+    ctx.lineTo(x + width, y + height);
+    ctx.lineTo(x + width, y + height - cornerSize);
+    ctx.stroke();
+
+    // Target Label Badge Header
     const labelText = `${result.item_detected} • ${isGreen ? 'CLEAN (PASS)' : 'CONTAMINATED / HAZARD'}`;
     const fontSize = Math.max(12, Math.round(canvas.width * 0.022));
     ctx.font = `bold ${fontSize}px sans-serif`;
@@ -166,10 +209,10 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
     const badgeHeight = fontSize + 12;
 
     ctx.fillStyle = strokeColor;
-    ctx.fillRect(x, Math.max(0, y - badgeHeight - 2), textWidth + 16, badgeHeight);
+    ctx.fillRect(x, Math.max(0, y - badgeHeight - 4), textWidth + 18, badgeHeight);
 
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(labelText, x + 8, Math.max(fontSize + 4, y - 8));
+    ctx.fillText(labelText, x + 9, Math.max(fontSize + 2, y - 8));
   }, []);
 
   // Synchronize external inspection results (e.g. from ShieldBin AI Copilot)

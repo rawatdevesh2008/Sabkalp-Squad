@@ -90,7 +90,7 @@ export const AiChatBox: React.FC<AiChatBoxProps> = ({
       id: 'welcome',
       sender: 'ai',
       intent: 'general_chat',
-      text: "👋 Hi! I'm your **ShieldBin AI Copilot**.\n\nI serve a dual role:\n• **Waste Override**: Type or speak an item (*'banana peel'*, *'lithium battery'*, *'That\\'s a mobile, not paper'*) to update CPCB segregation.\n• **General Assistant**: Ask me anything—science queries, code snippets, recycling mechanics, or jokes—just like ChatGPT!",
+      text: "👋 Hi! I'm your **ShieldBin AI Copilot**.\n\nI provide real-time source segregation intelligence according to Central Pollution Control Board (CPCB) rules.\n• **Waste Override**: Type or speak an item (*'lithium battery'*, *'banana peel'*, *'greasy pizza box'*).\n• **General Queries**: Ask any environmental or technical questions.",
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -320,15 +320,13 @@ export const AiChatBox: React.FC<AiChatBoxProps> = ({
     }
   };
 
-  // Quick Action Preset Buttons
+  // Quick Action Preset Buttons - strictly restricted to waste overrides
   const samplePrompts = [
     { label: '🔋 Lithium Battery', prompt: 'lithium battery' },
-    { label: '🍌 Banana Peel', prompt: 'banana peel' },
-    { label: '📱 Mobile Phone', prompt: "That's a mobile, not paper" },
     { label: '🍕 Greasy Pizza Box', prompt: 'greasy pizza box' },
-    { label: '♻️ How Recycling Works', prompt: 'How does recycling work?' },
-    { label: '🐍 Python Script', prompt: 'Write a Python script for binary search' },
-    { label: '😄 Tell Me a Joke', prompt: 'Tell me a joke' },
+    { label: '🧴 PET Bottle', prompt: 'clean pet bottle' },
+    { label: '🍌 Banana Peel', prompt: 'banana peel' },
+    { label: '⚪ Empty Frame', prompt: 'empty frame' },
   ];
 
   // Helper to render markdown and code blocks
@@ -592,8 +590,8 @@ export const AiChatBox: React.FC<AiChatBoxProps> = ({
               </div>
             )}
 
-            {/* Input Controls Bar */}
-            <div className="flex items-center gap-2.5 pt-1">
+            {/* Integrated Elegant Floating Input Bar */}
+            <div className="relative flex items-center bg-white dark:bg-[#070A0F]/90 border border-slate-300 dark:border-slate-800/80 rounded-2xl p-1.5 focus-within:border-emerald-500/60 focus-within:ring-2 focus-within:ring-emerald-500/20 shadow-lg shadow-black/10 transition-all">
               {/* Native Voice Microphone Button */}
               <button
                 type="button"
@@ -602,22 +600,20 @@ export const AiChatBox: React.FC<AiChatBoxProps> = ({
                   isListening
                     ? 'Stop Voice Listening'
                     : speechSupported
-                    ? 'Click to speak your correction or question'
+                    ? 'Speak waste override or query'
                     : 'Speech recognition unavailable in this browser'
                 }
-                className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center shrink-0 hover:-translate-y-0.5 active:scale-95 shadow-sm ${
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0 ${
                   isListening
-                    ? 'bg-rose-500 text-white border-rose-600 shadow-md shadow-rose-500/30 scale-105'
-                    : 'bg-slate-100 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-800 hover:border-emerald-500/50 hover:text-emerald-600 dark:hover:text-emerald-400'
+                    ? 'bg-rose-500 text-white shadow-md shadow-rose-500/30 animate-pulse'
+                    : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10'
                 }`}
                 aria-label="Toggle voice input"
               >
-                <span className="text-base sm:text-lg">
-                  {isListening ? '🎙️' : '🎤'}
-                </span>
+                <span className="text-base">{isListening ? '🎙️' : '🎤'}</span>
               </button>
 
-              {/* Text Input Box */}
+              {/* Seamless Text Input */}
               <input
                 ref={inputRef}
                 type="text"
@@ -625,23 +621,30 @@ export const AiChatBox: React.FC<AiChatBoxProps> = ({
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isAnalyzing}
-                placeholder="Ask anything or override: 'banana peel', 'lithium battery'..."
-                className="flex-1 bg-slate-100 dark:bg-slate-900/90 border border-slate-300 dark:border-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                placeholder="Ask or override: 'lithium battery', 'greasy pizza box'..."
+                className="flex-1 bg-transparent border-0 text-xs sm:text-sm text-slate-900 dark:text-white px-3 py-1.5 focus:outline-none font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
 
-              {/* Send Action Button */}
+              {/* Distinct Send Action Button with SVG Icon */}
               <button
                 type="button"
                 onClick={() => handleSend()}
                 disabled={isAnalyzing || !inputText.trim()}
-                className="px-4.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none cursor-pointer flex items-center gap-1.5 shrink-0"
+                className="w-9 h-9 rounded-xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white shadow-md shadow-emerald-500/25 hover:shadow-emerald-500/35 active:scale-95 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center justify-center shrink-0"
+                aria-label="Send message"
               >
                 {isAnalyzing ? (
                   <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <span>Send</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="w-4 h-4 transform rotate-90 translate-x-0.5"
+                  >
+                    <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                  </svg>
                 )}
-                {!isAnalyzing && <span className="text-xs">➤</span>}
               </button>
             </div>
           </div>

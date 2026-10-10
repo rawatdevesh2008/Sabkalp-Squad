@@ -54,6 +54,11 @@ export function App() {
         const scoreRes = await fetch(`${API_URL}/api/user/score?user_id=${DEFAULT_USER}`);
         if (scoreRes.ok) {
           const scoreData = await scoreRes.json();
+          // Zero State Rule: default 0% and 0 until a valid item is scanned
+          if (scoreData.total_scans === 0) {
+            scoreData.segregation_accuracy_pct = 0.0;
+            scoreData.contamination_prevented = 0;
+          }
           setUserScore(scoreData);
         }
       } catch (err) {
@@ -71,14 +76,28 @@ export function App() {
   const handleInspectionResult = (result: InspectionResponse) => {
     setLastResult(result);
     if (result.user_score) {
-      setUserScore(result.user_score);
+      const isValidItem =
+        result.item_detected &&
+        result.item_detected !== 'None' &&
+        result.correct_bin !== 'Waiting for Item...' &&
+        result.category !== 'N/A';
+
+      if (!isValidItem && result.user_score.total_scans === 0) {
+        setUserScore({
+          ...result.user_score,
+          segregation_accuracy_pct: 0.0,
+          contamination_prevented: 0,
+        });
+      } else {
+        setUserScore(result.user_score);
+      }
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-300 selection:bg-emerald-500/30">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080A10] text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-300 selection:bg-emerald-500/30">
       {/* Top Navbar Header */}
-      <header className="border-b border-slate-200/80 dark:border-slate-800/70 bg-white/80 dark:bg-[#0B0F17]/80 backdrop-blur-xl sticky top-0 z-50 transition-colors duration-300 shadow-sm">
+      <header className="border-b border-slate-200/80 dark:border-slate-800/70 bg-white/80 dark:bg-[#080A10]/80 backdrop-blur-xl sticky top-0 z-50 transition-colors duration-300 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
           {/* Brand Logo & Title */}
           <div className="flex items-center gap-3 min-w-0">
@@ -168,58 +187,73 @@ export function App() {
           <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-6 w-full">
             <ScoreBoard score={userScore} isLoading={isScoreLoading} />
 
-            {/* Indian SWM 2016 Guidelines Quick Card */}
-            <div className="glass-panel rounded-2xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800/70 shadow-xl transition-all relative overflow-hidden group">
+            {/* Indian SWM 2016 Guidelines High-Tech Cards */}
+            <div className="glass-panel rounded-2xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800/80 shadow-2xl transition-all relative overflow-hidden group">
+              {/* Subtle Ambient Backing */}
+              <div className="absolute top-0 right-0 w-36 h-36 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+
               <div className="flex items-center justify-between pb-3.5 border-b border-slate-200/80 dark:border-slate-800/80">
                 <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                   <span>📋</span> Municipal Waste Standards
                 </h4>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                  CPCB 2016/2022
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
+                  CPCB SWM 2016
                 </span>
               </div>
 
               <div className="space-y-3 mt-4 text-xs">
-                {/* Blue Bin */}
-                <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800/70 hover:border-blue-500/40 hover:-translate-y-0.5 transition-all">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-3 h-3 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50 shrink-0" />
-                    <span className="font-bold text-slate-900 dark:text-white">Blue Bin (Dry Recyclables)</span>
+                {/* Blue Bin - Electric Blue */}
+                <div className="p-3.5 rounded-xl bg-slate-50/90 dark:bg-blue-950/15 border border-slate-200/80 dark:border-blue-500/30 hover:border-blue-400/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/5 transition-all">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-3 h-3 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50 shrink-0" />
+                      <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">Blue Bin (Dry Recyclable)</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">Clean Stream</span>
                   </div>
-                  <p className="text-slate-600 dark:text-slate-400 mt-1 pl-5.5 leading-relaxed text-[11px]">
+                  <p className="text-slate-600 dark:text-slate-400 mt-1.5 pl-5.5 leading-relaxed text-[11px]">
                     Clean paper, cardboard, PET bottles, metal cans. <span className="text-blue-600 dark:text-blue-300 font-semibold italic">Must be free of food grease!</span>
                   </p>
                 </div>
 
-                {/* Green Bin */}
-                <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800/70 hover:border-emerald-500/40 hover:-translate-y-0.5 transition-all">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50 shrink-0" />
-                    <span className="font-bold text-slate-900 dark:text-white">Green Bin (Wet Organic)</span>
+                {/* Green Bin - Emerald */}
+                <div className="p-3.5 rounded-xl bg-slate-50/90 dark:bg-emerald-950/15 border border-slate-200/80 dark:border-emerald-500/30 hover:border-emerald-400/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-500/5 transition-all">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50 shrink-0" />
+                      <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">Green Bin (Wet Organic)</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">Compostable</span>
                   </div>
-                  <p className="text-slate-600 dark:text-slate-400 mt-1 pl-5.5 leading-relaxed text-[11px]">
+                  <p className="text-slate-600 dark:text-slate-400 mt-1.5 pl-5.5 leading-relaxed text-[11px]">
                     Vegetable & fruit peels, food leftovers, tea leaves, compostable organic scraps.
                   </p>
                 </div>
 
-                {/* Yellow Bin */}
-                <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800/70 hover:border-amber-500/40 hover:-translate-y-0.5 transition-all">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-3 h-3 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50 shrink-0" />
-                    <span className="font-bold text-slate-900 dark:text-white">Yellow (E-Waste / Specialized)</span>
+                {/* Yellow Bin - Electric Amber */}
+                <div className="p-3.5 rounded-xl bg-slate-50/90 dark:bg-amber-950/15 border border-slate-200/80 dark:border-amber-500/30 hover:border-amber-400/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-500/5 transition-all">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-3 h-3 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50 shrink-0" />
+                      <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">Yellow Bin (E-Waste / Hazard)</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">Special Depot</span>
                   </div>
-                  <p className="text-slate-600 dark:text-slate-400 mt-1 pl-5.5 leading-relaxed text-[11px]">
+                  <p className="text-slate-600 dark:text-slate-400 mt-1.5 pl-5.5 leading-relaxed text-[11px]">
                     Phones, lithium batteries, chargers, circuitry. <span className="text-amber-600 dark:text-amber-300 font-bold">Never dump into municipal bins!</span>
                   </p>
                 </div>
 
-                {/* Black Bin */}
-                <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800/70 hover:border-slate-600/40 hover:-translate-y-0.5 transition-all">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-3 h-3 rounded-full bg-slate-500 shadow-sm shadow-slate-500/50 shrink-0" />
-                    <span className="font-bold text-slate-900 dark:text-white">Black Bin (Sanitary / Landfill)</span>
+                {/* Black Bin - Dark Slate */}
+                <div className="p-3.5 rounded-xl bg-slate-50/90 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 hover:border-slate-600/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 transition-all">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-3 h-3 rounded-full bg-slate-500 shadow-sm shadow-slate-500/50 shrink-0" />
+                      <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">Black Bin (Sanitary / Landfill)</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-semibold text-slate-500 dark:text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded-md border border-slate-700/60">Non-Recyclable</span>
                   </div>
-                  <p className="text-slate-600 dark:text-slate-400 mt-1 pl-5.5 leading-relaxed text-[11px]">
+                  <p className="text-slate-600 dark:text-slate-400 mt-1.5 pl-5.5 leading-relaxed text-[11px]">
                     Greasy pizza boxes, soiled diapers, inert wraps, contaminated reject waste.
                   </p>
                 </div>
@@ -230,7 +264,7 @@ export function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-[#070A0F]/80 py-4 text-center text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 px-4 transition-colors font-mono">
+      <footer className="border-t border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-[#080A10]/80 py-4 text-center text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 px-4 transition-colors font-mono">
         Bharat Builds Tour • Environmental Hacks (Track 03) • Sankalp Squad
       </footer>
 

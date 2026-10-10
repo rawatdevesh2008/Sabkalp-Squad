@@ -84,7 +84,7 @@ class DynamoDBService:
                 "total_scans": 0,
                 "correct_scans": 0,
                 "contamination_prevented": 0,
-                "segregation_accuracy_pct": 100.0,
+                "segregation_accuracy_pct": 0.0,
                 "last_updated": timestamp,
             }
 
@@ -106,7 +106,7 @@ class DynamoDBService:
         if is_contaminated:
             score_rec["contamination_prevented"] += 1
 
-        accuracy = (score_rec["correct_scans"] / score_rec["total_scans"]) * 100.0
+        accuracy = (score_rec["correct_scans"] / score_rec["total_scans"]) * 100.0 if score_rec["total_scans"] > 0 else 0.0
         score_rec["segregation_accuracy_pct"] = round(accuracy, 1)
         score_rec["last_updated"] = timestamp
 
@@ -148,7 +148,7 @@ class DynamoDBService:
         if user_id in self._local_user_scores:
             return UserScore(**self._local_user_scores[user_id])
         
-        # Default fresh profile
+        # Default fresh profile: 0 scans -> 0.0% accuracy, 0 contamination stopped
         return UserScore(
             user_id=user_id,
             ward_id="Ward-12 (Delhi)",
@@ -156,7 +156,7 @@ class DynamoDBService:
             total_scans=0,
             correct_scans=0,
             contamination_prevented=0,
-            segregation_accuracy_pct=100.0,
+            segregation_accuracy_pct=0.0,
             last_updated=datetime.now(timezone.utc).isoformat(),
         )
 
