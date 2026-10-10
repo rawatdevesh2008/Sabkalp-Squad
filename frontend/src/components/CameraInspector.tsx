@@ -502,49 +502,63 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#070A0F]/95 text-slate-200 p-6 text-center z-30">
             <span className="text-4xl mb-2">📷</span>
             <p className="font-semibold text-rose-300 mb-2 text-sm">{cameraError}</p>
-            <p className="text-xs text-slate-400 mb-4">Click below to upload a photo or load a test frame:</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg transition-all cursor-pointer"
-              >
-                📁 Upload Photo
-              </button>
-              <button
-                onClick={() => handleSamplePreset('phone')}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-xl text-xs font-bold border border-cyan-500/40 transition-all cursor-pointer"
-              >
-                📱 Test Mobile Phone
-              </button>
-            </div>
+            <p className="text-xs text-slate-400 mb-4 max-w-md leading-relaxed">
+              You can test waste inspection by uploading a photo below, or by using the Quick Test Presets.
+            </p>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center gap-2 hover:-translate-y-0.5 active:scale-95"
+            >
+              <span>📁</span>
+              <span>Upload Photo</span>
+            </button>
           </div>
         )}
       </div>
 
       {/* Controller Buttons Bar */}
-      <div className="glass-panel rounded-2xl p-4 sm:p-5 flex flex-col gap-3.5 max-w-2xl mx-auto w-full border border-slate-200/80 dark:border-slate-800/70 shadow-xl transition-all">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
-            <label className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider shrink-0 font-mono">
-              Target Bin:
+      <div className="glass-panel rounded-2xl p-4 sm:p-5 flex flex-col gap-4 max-w-2xl mx-auto w-full border border-slate-200/80 dark:border-slate-800/70 shadow-xl transition-all">
+        {/* Tier 1: Target Bin Selection & Camera Mode Controls */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-3.5 border-b border-slate-200/70 dark:border-slate-800/70">
+          {/* Target Bin Dropdown Group */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <label className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider shrink-0 font-mono flex items-center gap-1.5">
+              <span>🎯</span>
+              <span>Target Bin:</span>
             </label>
-            <select
-              value={targetBin}
-              onChange={(e) => setTargetBin(e.target.value)}
-              className="bg-slate-100 dark:bg-slate-900/90 border border-slate-300 dark:border-slate-700/80 text-xs sm:text-sm text-slate-900 dark:text-white rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 w-full sm:w-auto font-medium transition-all"
-            >
-              <option value="Auto-Detect">Auto-Detect Stream</option>
-              <option value="Dry Recyclable">Blue Bin (Dry Recyclable)</option>
-              <option value="Wet Organic">Green Bin (Wet Organic)</option>
-            </select>
+            <div className="relative flex-1 sm:w-52">
+              <select
+                value={targetBin}
+                onChange={(e) => setTargetBin(e.target.value)}
+                className="w-full bg-slate-100 dark:bg-slate-900/90 border border-slate-300 dark:border-slate-700/80 text-xs sm:text-sm text-slate-900 dark:text-white rounded-xl px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 font-medium transition-all cursor-pointer appearance-none shadow-sm"
+              >
+                <option value="Auto-Detect">Auto-Detect Stream</option>
+                <option value="Dry Recyclable">Blue Bin (Dry Recyclable)</option>
+                <option value="Wet Organic">Green Bin (Wet Organic)</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400 text-xs">
+                ▼
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Camera Stream & File Actions */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-start sm:justify-end">
+            {previewImage && isCameraOn && isStreaming && (
+              <button
+                onClick={handleReset}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-cyan-700 dark:text-cyan-300 hover:bg-slate-300 dark:hover:bg-slate-700 border border-cyan-500/30 flex items-center justify-center gap-1.5 flex-1 sm:flex-initial cursor-pointer hover:-translate-y-0.5 active:scale-95 transition-all shadow-sm whitespace-nowrap"
+              >
+                <span>📹</span>
+                <span>Live Feed</span>
+              </button>
+            )}
+
             {/* Camera On / Off Toggle Button */}
             <button
               onClick={toggleCamera}
               id="camera-toggle-btn"
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-initial cursor-pointer hover:-translate-y-0.5 active:scale-95 shadow-sm ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-initial cursor-pointer hover:-translate-y-0.5 active:scale-95 shadow-sm whitespace-nowrap ${
                 isCameraOn
                   ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-500/30 hover:bg-rose-500/20'
                   : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30 hover:bg-emerald-500/20'
@@ -555,49 +569,44 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
               <span>{isCameraOn ? 'Turn Off Camera' : 'Turn On Camera'}</span>
             </button>
 
-            {previewImage && isCameraOn && isStreaming && (
-              <button
-                onClick={handleReset}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-cyan-700 dark:text-cyan-300 hover:bg-slate-300 dark:hover:bg-slate-700 border border-cyan-500/30 flex-1 sm:flex-initial cursor-pointer hover:-translate-y-0.5 active:scale-95 transition-all shadow-sm"
-              >
-                📹 Live Camera
-              </button>
-            )}
-
+            {/* Upload Photo Button */}
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-initial cursor-pointer hover:-translate-y-0.5 active:scale-95 shadow-sm"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-initial cursor-pointer hover:-translate-y-0.5 active:scale-95 shadow-sm whitespace-nowrap"
             >
               <span>📁</span>
               <span>Upload Photo</span>
             </button>
-
-            {/* Primary Action Button: Inspect Waste Item */}
-            <button
-              onClick={captureAndInspect}
-              disabled={isProcessing}
-              id="inspect-waste-btn"
-              className="px-5 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-black bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer flex-1 sm:flex-initial"
-            >
-              {isProcessing ? (
-                <>
-                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Auditing with Bedrock...</span>
-                </>
-              ) : (
-                <>
-                  <span>📸</span>
-                  <span>Inspect Waste Item</span>
-                </>
-              )}
-            </button>
           </div>
         </div>
 
-        {/* Quick Test Presets Row */}
-        <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between gap-2 flex-wrap">
-          <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
-            Quick Test Presets:
+        {/* Tier 2: Primary Inspection Action Bar */}
+        <div>
+          <button
+            onClick={captureAndInspect}
+            disabled={isProcessing}
+            id="inspect-waste-btn"
+            className="w-full py-3 px-6 rounded-xl text-xs sm:text-sm font-black bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            {isProcessing ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Auditing Waste with AI Vision...</span>
+              </>
+            ) : (
+              <>
+                <span className="text-base sm:text-lg">📸</span>
+                <span>Inspect Waste Item</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Tier 3: Quick Test Presets Row */}
+        <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between gap-2.5 flex-wrap">
+          <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1">
+            <span>⚡</span>
+            <span>Quick Test Presets:</span>
           </span>
           <div className="flex items-center gap-2 flex-wrap">
             <button
