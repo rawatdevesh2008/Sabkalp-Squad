@@ -32,42 +32,76 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
   const [selectedPreset, setSelectedPreset] = useState<'phone' | 'bottle' | 'pizza' | 'empty' | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // 1. Initialize Webcam at High Resolution (at least 640x480, ideal 1280x720)
-  useEffect(() => {
-    let stream: MediaStream | null = null;
+  const [isCameraOn, setIsCameraOn] = useState(true);
+  const streamRef = useRef<MediaStream | null>(null);
 
-    async function startCamera() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280, min: 640 },
-            height: { ideal: 720, min: 480 },
-            facingMode: 'environment',
-          },
-          audio: false,
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => {});
-          setIsStreaming(true);
-          setCameraError(null);
-        }
-      } catch (err: any) {
-        console.error('Camera access error:', err);
-        setCameraError(
-          'Webcam unavailable or permission denied. You can test manually using Upload Photo or Sample Presets below.'
-        );
+  // Stop Webcam stream cleanly releasing hardware media tracks
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsStreaming(false);
+  }, []);
+
+  // Initialize Webcam at High Resolution (at least 640x480, ideal 1280x720)
+  const startCamera = useCallback(async () => {
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
       }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280, min: 640 },
+          height: { ideal: 720, min: 480 },
+          facingMode: 'environment',
+        },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+        setIsStreaming(true);
+        setCameraError(null);
+      }
+    } catch (err: any) {
+      console.error('Camera access error:', err);
+      setCameraError(
+        'Webcam unavailable or permission denied. You can test manually using Upload Photo or Sample Presets below.'
+      );
+      setIsStreaming(false);
+    }
+  }, []);
+
+  // Toggle Camera On/Off
+  const toggleCamera = useCallback(() => {
+    setIsCameraOn((prev) => {
+      const next = !prev;
+      if (next) {
+        startCamera();
+      } else {
+        stopCamera();
+      }
+      return next;
+    });
+  }, [startCamera, stopCamera]);
+
+  useEffect(() => {
+    if (isCameraOn) {
+      startCamera();
+    } else {
+      stopCamera();
     }
 
-    startCamera();
-
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      stopCamera();
     };
-  }, []);
+  }, [isCameraOn, startCamera, stopCamera]);
 
   // Update overlay canvas size when video dimensions are known
   const handleVideoMetadataLoaded = () => {
@@ -151,6 +185,9 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
     if (previewImage) {
       return previewImage;
     }
+    if (!isCameraOn) {
+      return null;
+    }
     if (videoRef.current && canvasRef.current && videoRef.current.videoWidth > 0) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -167,7 +204,7 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
       }
     }
     return null;
-  }, [previewImage]);
+  }, [previewImage, isCameraOn]);
 
   useEffect(() => {
     if (onFrameCaptureReady) {
@@ -231,10 +268,10 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
       const ctx = canvas.getContext('2d');
       ctx?.clearRect(0, 0, canvas.width, canvas.height);
     }
-    if (videoRef.current && videoRef.current.paused) {
+    if (isCameraOn && videoRef.current && videoRef.current.paused) {
       videoRef.current.play().catch(() => {});
     }
-  }, []);
+  }, [isCameraOn]);
 
   // 5. High-Resolution Canvas Capture & Manual Trigger
   const captureAndInspect = useCallback(async () => {
@@ -243,6 +280,11 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
     // If an image was uploaded or chosen via preset, inspect that frame
     if (previewImage) {
       inspectImageBase64(previewImage, undefined, selectedPreset);
+      return;
+    }
+
+    if (!isCameraOn) {
+      alert('Camera is currently turned off. Please turn on the camera or upload an image to inspect.');
       return;
     }
 
@@ -387,6 +429,23 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
             alt="Inspection Frame"
             className="w-full h-full object-contain bg-[#070A0F]"
           />
+        ) : !isCameraOn ? (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-[#070A0F] text-slate-300 p-6 text-center select-none">
+            <div className="w-16 h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center text-3xl mb-3 shadow-inner">
+              📷
+            </div>
+            <h4 className="text-sm sm:text-base font-bold text-white mb-1">Camera is Turned Off</h4>
+            <p className="text-xs text-slate-400 max-w-sm mb-4 leading-relaxed">
+              Webcam feed is paused and hardware camera is disengaged. Turn the camera back on or upload a photo to inspect waste.
+            </p>
+            <button
+              onClick={toggleCamera}
+              className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/20 transition-all cursor-pointer flex items-center gap-2 hover:-translate-y-0.5 active:scale-95"
+            >
+              <span>🎥</span>
+              <span>Turn On Camera</span>
+            </button>
+          </div>
         ) : (
           <video
             ref={videoRef}
@@ -417,6 +476,8 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
                   ? 'bg-amber-400 animate-ping'
                   : previewImage
                   ? 'bg-cyan-400'
+                  : !isCameraOn
+                  ? 'bg-slate-400'
                   : 'bg-emerald-400'
               }`}
             />
@@ -425,6 +486,8 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
                 ? 'Auditing with Bedrock...'
                 : previewImage
                 ? 'Frame Loaded • Ready'
+                : !isCameraOn
+                ? 'Camera Off • Standby'
                 : 'Live Camera • Active'}
             </span>
           </div>
@@ -435,7 +498,7 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
         </div>
 
         {/* Error Notification if camera unavailable and no preview */}
-        {cameraError && !previewImage && (
+        {cameraError && !previewImage && isCameraOn && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#070A0F]/95 text-slate-200 p-6 text-center z-30">
             <span className="text-4xl mb-2">📷</span>
             <p className="font-semibold text-rose-300 mb-2 text-sm">{cameraError}</p>
@@ -477,7 +540,22 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            {previewImage && isStreaming && (
+            {/* Camera On / Off Toggle Button */}
+            <button
+              onClick={toggleCamera}
+              id="camera-toggle-btn"
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-initial cursor-pointer hover:-translate-y-0.5 active:scale-95 shadow-sm ${
+                isCameraOn
+                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-500/30 hover:bg-rose-500/20'
+                  : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30 hover:bg-emerald-500/20'
+              }`}
+              title={isCameraOn ? 'Turn off webcam camera' : 'Turn on webcam camera'}
+            >
+              <span>{isCameraOn ? '📷' : '🎥'}</span>
+              <span>{isCameraOn ? 'Turn Off Camera' : 'Turn On Camera'}</span>
+            </button>
+
+            {previewImage && isCameraOn && isStreaming && (
               <button
                 onClick={handleReset}
                 className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-cyan-700 dark:text-cyan-300 hover:bg-slate-300 dark:hover:bg-slate-700 border border-cyan-500/30 flex-1 sm:flex-initial cursor-pointer hover:-translate-y-0.5 active:scale-95 transition-all shadow-sm"
