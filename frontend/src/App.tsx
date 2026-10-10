@@ -39,6 +39,8 @@ export function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  const [hasInspectedItem, setHasInspectedItem] = useState(false);
+
   // Initial fetch of DynamoDB User Score & Backend Health
   useEffect(() => {
     async function fetchInitialData() {
@@ -75,14 +77,18 @@ export function App() {
   // Update Score & Result state whenever a new scan inspection returns (from Camera or Copilot)
   const handleInspectionResult = (result: InspectionResponse) => {
     setLastResult(result);
-    if (result.user_score) {
-      const isValidItem =
-        result.item_detected &&
-        result.item_detected !== 'None' &&
-        result.correct_bin !== 'Waiting for Item...' &&
-        result.category !== 'N/A';
+    const isValidItem =
+      Boolean(result.item_detected) &&
+      result.item_detected !== 'None' &&
+      result.correct_bin !== 'Waiting for Item...' &&
+      result.category !== 'N/A';
 
-      if (!isValidItem && result.user_score.total_scans === 0) {
+    if (isValidItem) {
+      setHasInspectedItem(true);
+    }
+
+    if (result.user_score) {
+      if (!isValidItem && (!hasInspectedItem || result.user_score.total_scans === 0)) {
         setUserScore({
           ...result.user_score,
           segregation_accuracy_pct: 0.0,
@@ -185,7 +191,11 @@ export function App() {
 
           {/* Sidebar Column: Household Leaderboard & Municipal Guidelines */}
           <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-6 w-full">
-            <ScoreBoard score={userScore} isLoading={isScoreLoading} />
+            <ScoreBoard
+              score={userScore}
+              isLoading={isScoreLoading}
+              hasInspectedItem={hasInspectedItem}
+            />
 
             {/* Indian SWM 2016 Guidelines High-Tech Cards */}
             <div className="glass-panel rounded-2xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800/80 shadow-2xl transition-all relative overflow-hidden group">

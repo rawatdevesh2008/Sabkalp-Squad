@@ -4,9 +4,10 @@ import { UserScore } from '../types';
 interface ScoreBoardProps {
   score: UserScore | null;
   isLoading: boolean;
+  hasInspectedItem?: boolean;
 }
 
-export const ScoreBoard: React.FC<ScoreBoardProps> = ({ score, isLoading }) => {
+export const ScoreBoard: React.FC<ScoreBoardProps> = ({ score, isLoading, hasInspectedItem = false }) => {
   if (!score) {
     return (
       <div className="glass-panel rounded-2xl p-5 sm:p-6 text-center border border-slate-200 dark:border-slate-800/80">
@@ -16,10 +17,10 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({ score, isLoading }) => {
     );
   }
 
-  // Zero State Rule: Until a valid item is placed and scanned, counters default strictly to 0% and 0
-  const hasScans = score.total_scans > 0;
-  const accuracy = hasScans ? Math.min(100, Math.max(0, score.segregation_accuracy_pct)) : 0;
-  const contaminationStopped = hasScans ? score.contamination_prevented : 0;
+  // Zero State Rule: The accuracy level and contamination must be strictly 0 until an object is shown or its photo is uploaded
+  const hasActiveScan = Boolean(hasInspectedItem && score.total_scans > 0);
+  const accuracy = hasActiveScan ? Math.min(100, Math.max(0, score.segregation_accuracy_pct)) : 0;
+  const contaminationStopped = hasActiveScan ? score.contamination_prevented : 0;
 
   return (
     <div className="glass-panel rounded-2xl p-4 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800/80 relative overflow-hidden group">
@@ -82,7 +83,7 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({ score, isLoading }) => {
               />
             </div>
             <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate mt-1.5 font-mono">
-              {hasScans ? `${score.correct_scans} of ${score.total_scans} verified clean` : 'Awaiting initial waste scan'}
+              {hasActiveScan ? `${score.correct_scans} of ${score.total_scans} verified clean` : 'Awaiting initial waste scan'}
             </span>
           </div>
         </div>
@@ -106,11 +107,11 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({ score, isLoading }) => {
             <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full transition-all duration-500"
-                style={{ width: `${hasScans ? Math.min(100, contaminationStopped * 10) : 0}%` }}
+                style={{ width: `${hasActiveScan ? Math.min(100, contaminationStopped * 10) : 0}%` }}
               />
             </div>
             <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate mt-1.5 font-mono">
-              {hasScans ? 'Cross-contamination averted' : '0 violations detected'}
+              {hasActiveScan ? 'Cross-contamination averted' : '0 violations detected'}
             </span>
           </div>
         </div>
