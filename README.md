@@ -371,12 +371,12 @@ cd Sankalp-Squad
 | **Live Web Application** | https://sankalp-squad.vercel.app/ |
 
 ### Team Sankalp Squad
-| Member | Role | Responsibility |
+| Member | Role | Responsibilities |
 |---|---|---|
-| **Garv Ghildiyal** | Team Leader & Full-Stack Engineer | System Architecture, AWS Bedrock Integration, FastAPI Backend, DynamoDB Pipeline |
-| **Devesh Singh Rawat** | Full-Stack & Frontend Lead | React UI/UX, Camera Inspector, Real-Time Bounding Box Canvas, Responsive Design |
-| **Abhinav Singh** | Cloud & Systems Engineer | AWS Cedar Policy Formulation, Environmental Law Mapping, Deployment Automation |
-| **Abhinav Chauhan** | AI & Testing Engineer | Copilot Prompt Engineering, Multimodal Evaluation, Unit Testing, Documentation |
+| **Garv Ghildiyal** | Team Leader | Leader, Tester and Reviewer |
+| **Devesh Singh Rawat** | Backend Lead | Backend and AI Designer |
+| **Abhinav Chauhan** | Frontend Lead | Frontend and UI/UX Designer |
+| **Abhinav Singh** | Pitch Lead | Demo Video and Pitch |
 
 ---
 
