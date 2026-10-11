@@ -22,7 +22,7 @@
 
 **ShieldBin** is an autonomous, source-level waste and contamination inspection system that brings artificial intelligence directly to the point of disposal. Rather than attempting to sort mixed garbage after collection at expensive centralized recycling centers, ShieldBin prevents contamination **before the waste leaves the citizen's hand**.
 
-Using any standard smartphone or laptop camera, ShieldBin captures live frames, executes deep multimodal visual inspection to detect materials, grease saturation, and hazardous components, and submits the classification to the **AWS Cedar Policy Engine**. Cedar evaluates the action against Indian statutory environmental laws, delivering an immediate, legally binding **PERMIT** or **FORBID** verdict with real-time green/red bounding box overlays. The citizen receives explicit bin guidance, corrective remediation steps, and instant gamification rewards tracked in **Amazon DynamoDB**.
+Using any standard smartphone or laptop camera, ShieldBin captures live frames and executes sub-second multimodal visual inspection using Google Gemini Vision (backed by Amazon Bedrock Claude Vision for enterprise fallback) to detect materials, grease saturation, and hazardous components. It submits the classification to the **AWS Cedar Policy Engine**. Cedar evaluates the action against Indian statutory environmental laws, delivering an immediate, legally binding **PERMIT** or **FORBID** verdict with real-time green/red bounding box overlays. The citizen receives explicit bin guidance, corrective remediation steps, and instant gamification rewards tracked in **Amazon DynamoDB**.
 
 With **Zero Custom Hardware** required, ShieldBin runs instantly in any modern web browser—eliminating municipal CapEx barriers while ensuring compliance with national segregation mandates.
 
@@ -58,15 +58,15 @@ With **Zero Custom Hardware** required, ShieldBin runs instantly in any modern w
 
 | AWS Service | Architectural Role | Exact Code File | Implementation & Functionality |
 |---|---|---|---|
-| **Amazon Bedrock** | Multimodal Vision Foundation Model | `backend/app/bedrock_service.py` | Invokes Anthropic Claude 3.5 Sonnet (`anthropic.claude-3-5-sonnet-20240620-v1:0`) and Claude 3 Haiku (`anthropic.claude-3-haiku-20240307-v1:0`) via the boto3 `bedrock-runtime` client using the Anthropic Messages API. Analyzes base64 image frames for object identity, physical material classification, food grease saturation, and hazardous components along with Google API. |
+| **Amazon Bedrock** | Multimodal Vision Foundation Model (Enterprise Fallback) | `backend/app/bedrock_service.py` | Invokes Anthropic Claude 3.5 Sonnet (`anthropic.claude-3-5-sonnet-20240620-v1:0`) and Claude 3 Haiku (`anthropic.claude-3-haiku-20240307-v1:0`) via the boto3 `bedrock-runtime` client using the Anthropic Messages API. Serves as the enterprise AWS foundation model fallback, complementing Google AI Studio Gemini API (`gemini-3.6-flash`) which serves active live camera perception with sub-second latency. |
 | **AWS Cedar Policy Engine** | Statutory Policy-as-Code Guardrails | `backend/app/cedar_service.py` & `backend/policies/swm_2016_cpcb.cedar` | Evaluates disposal actions deterministically against formal policy declarations. Inspects context attributes (`is_contaminated`, `category`, `target_bin`) against statutory rules (`policy_swm_blue_bin_permit`, `policy_swm_grease_contamination_forbid`, `policy_cpcb_ewaste_hazard_ban`) to return unambiguous `PERMIT` or `FORBID` decisions with official statutory citations. |
 | **Amazon DynamoDB** | Telemetry Audit Log & Live Gamification Database | `backend/app/dynamodb_service.py` | Stores granular audit logs for every inspection in `ShieldBin_Scans` (scan ID, timestamp, coordinates, item detected, contamination status, correct bin, points awarded) and maintains household telemetry in `ShieldBin_Scans_Scores` (accuracy percentage, total points, total scans, contamination prevented). |
 
 ### 💡 Why AWS Cedar: "The LLM Perceives, Cedar Decides"
-Generative AI and Large Multimodal Models are exceptional at **perception**—identifying complex visual shapes, recognizing subtle grease stains, deciphering brand labels, and detecting material textures. However, LLMs are probabilistic: they can hallucinate, demonstrate policy drift, or be swayed by prompt injection into lenient interpretations of environmental law.
+Generative AI and Large Multimodal Models (whether Google Gemini or Claude 3.5 Sonnet) are exceptional at **perception**—identifying complex visual shapes, recognizing subtle grease stains, deciphering brand labels, and detecting material textures. However, LLMs are probabilistic: they can hallucinate, demonstrate policy drift, or be swayed by prompt injection into lenient interpretations of environmental law.
 
 **ShieldBin strictly decouples perception from governance**:
-1. **The LLM Perceives**: The vision model inspects the physical frame and returns factual observations (e.g., `"item": "Pizza Box"`, `"is_greasy": true`).
+1. **The LLM Perceives**: The vision model (Google Gemini / Claude 3.5 Sonnet) inspects the physical frame and returns factual observations (e.g., `"item": "Pizza Box"`, `"is_greasy": true`).
 2. **Cedar Decides**: The deterministic AWS Cedar policy engine receives those attributes and checks them against immutable statutory rules. If food grease is present on dry recyclables, Cedar issues an absolute `FORBID` under MoEFCC SWM 2016 Rule 15(c). The policy cannot be bypassed by model hallucinations.
 
 ---
@@ -203,7 +203,7 @@ ShieldBin enforces Indian Municipal Solid Waste (MSW) segregation protocols esta
 | **Frontend UI** | React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons | Responsive single-page application with glassmorphism dark theme, real-time bounding box canvas, and responsive drawer panels. |
 | **Audio & Media** | HTML5 Canvas API, WebRTC MediaStream, Web Speech API | Client-side camera frame capture and microphone speech-to-text voice recognition. |
 | **Backend API** | FastAPI, Uvicorn, Python 3.11+, Pydantic v2 | High-throughput asynchronous REST API providing validation, CORS handling, and service orchestration. |
-| **AI & Multimodal Vision** | Amazon Bedrock (Claude 3.5 Sonnet, Claude 3 Haiku), Google AI Studio (Gemini Flash) , Google API| Multi-tiered multimodal vision pipeline extracting product class, material composition, cleanliness, and grease stains. |
+| **AI & Multimodal Vision** | **Primary Live Vision**: Google AI Studio (Gemini 3.6 Flash / 3.5 Flash-Lite via Google Generative Language API)<br/>**Enterprise Fallback**: Amazon Bedrock (Anthropic Claude 3.5 Sonnet, Claude 3 Haiku via `boto3`) | Multi-tiered multimodal vision pipeline extracting product class, material composition, cleanliness, and grease stains. |
 | **Policy Engine** | AWS Cedar Policy Engine (`swm_2016_cpcb.cedar`) | Declarative policy-as-code guardrails deterministically enforcing statutory environmental law. |
 | **Database & Telemetry** | Amazon DynamoDB (`ShieldBin_Scans`, `ShieldBin_Scans_Scores`) | Low-latency NoSQL database logging full audit trails, bounding box telemetry, and live gamification points. |
 | **Cloud Deployment** | Render (Backend API), Vercel (Frontend Client) | Continuous deployment infrastructure configured via `render.yaml` and `vercel.json`. |
@@ -322,6 +322,8 @@ cd Sankalp-Squad
    HOST=0.0.0.0
    PORT=8000
    ```
+
+   > 💡 **Quickest Local Setup (1 Free API Key)**: You only need **one** free API key (`GEMINI_API_KEY`) from Google AI Studio to run 100% full live multimodal camera vision and the AI Copilot locally! AWS Bedrock credentials are only required if routing explicitly through Amazon Bedrock.
 
    > 💡 **Zero-Credentials Mode**: If you do not have AWS or Gemini API keys, set `USE_MOCK_BEDROCK=true`. The backend will run entirely offline using high-fidelity deterministic CPCB simulation models.
 
