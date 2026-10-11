@@ -203,7 +203,7 @@ ShieldBin enforces Indian Municipal Solid Waste (MSW) segregation protocols esta
 | **Frontend UI** | React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons | Responsive single-page application with glassmorphism dark theme, real-time bounding box canvas, and responsive drawer panels. |
 | **Audio & Media** | HTML5 Canvas API, WebRTC MediaStream, Web Speech API | Client-side camera frame capture and microphone speech-to-text voice recognition. |
 | **Backend API** | FastAPI, Uvicorn, Python 3.11+, Pydantic v2 | High-throughput asynchronous REST API providing validation, CORS handling, and service orchestration. |
-| **AI & Multimodal Vision** | Amazon Bedrock (Claude 3.5 Sonnet, Claude 3 Haiku), Google AI Studio (Gemini Flash) | Multi-tiered multimodal vision pipeline extracting product class, material composition, cleanliness, and grease stains. |
+| **AI & Multimodal Vision** | Amazon Bedrock (Claude 3.5 Sonnet, Claude 3 Haiku), Google AI Studio (Gemini Flash) , Google API| Multi-tiered multimodal vision pipeline extracting product class, material composition, cleanliness, and grease stains. |
 | **Policy Engine** | AWS Cedar Policy Engine (`swm_2016_cpcb.cedar`) | Declarative policy-as-code guardrails deterministically enforcing statutory environmental law. |
 | **Database & Telemetry** | Amazon DynamoDB (`ShieldBin_Scans`, `ShieldBin_Scans_Scores`) | Low-latency NoSQL database logging full audit trails, bounding box telemetry, and live gamification points. |
 | **Cloud Deployment** | Render (Backend API), Vercel (Frontend Client) | Continuous deployment infrastructure configured via `render.yaml` and `vercel.json`. |
