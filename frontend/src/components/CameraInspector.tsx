@@ -220,11 +220,15 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
     const textWidth = ctx.measureText(labelText).width;
     const badgeHeight = fontSize + 12;
 
+    const badgeOnTop = y >= badgeHeight + 8;
+    const badgeY = badgeOnTop ? y - badgeHeight - 4 : y + 4;
+    const textY = badgeOnTop ? y - 8 : y + fontSize + 2;
+
     ctx.fillStyle = strokeColor;
-    ctx.fillRect(x, Math.max(0, y - badgeHeight - 4), textWidth + 18, badgeHeight);
+    ctx.fillRect(x, badgeY, textWidth + 18, badgeHeight);
 
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(labelText, x + 9, Math.max(fontSize + 2, y - 8));
+    ctx.fillText(labelText, x + 9, textY);
   }, []);
 
   // Synchronize external inspection results (e.g. from ShieldBin AI Copilot)
@@ -325,6 +329,10 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
     }
     const canvas = overlayCanvasRef.current;
     if (canvas) {
+      if (videoRef.current && videoRef.current.videoWidth > 0) {
+        canvas.width = videoRef.current.videoWidth;
+        canvas.height = videoRef.current.videoHeight;
+      }
       const ctx = canvas.getContext('2d');
       ctx?.clearRect(0, 0, canvas.width, canvas.height);
     }
@@ -425,11 +433,15 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
     const textWidth = ctx.measureText(badgeText).width;
     const badgeHeight = fontSize + 12;
 
+    const badgeOnTop = y >= badgeHeight + 8;
+    const badgeY = badgeOnTop ? y - badgeHeight - 4 : y + 4;
+    const textY = badgeOnTop ? y - 8 : y + fontSize + 2;
+
     ctx.fillStyle = strokeColor;
-    ctx.fillRect(x, Math.max(0, y - badgeHeight - 4), textWidth + 18, badgeHeight);
+    ctx.fillRect(x, badgeY, textWidth + 18, badgeHeight);
 
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(badgeText, x + 9, Math.max(fontSize + 2, y - 8));
+    ctx.fillText(badgeText, x + 9, textY);
   }, []);
 
   // 6. Client-side Computer Vision Presence Detection (analyzes center ROI variance vs peripheral corners)
@@ -666,6 +678,20 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
     e.target.value = '';
   };
 
+  // Dynamically calibrate overlay canvas dimensions to match the loaded image aspect ratio and resolution
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    const nw = img.naturalWidth || 640;
+    const nh = img.naturalHeight || 480;
+    if (overlayCanvasRef.current) {
+      overlayCanvasRef.current.width = nw;
+      overlayCanvasRef.current.height = nh;
+      if (lastResult) {
+        drawOverlay(lastResult);
+      }
+    }
+  };
+
   // Sample test frame generator for instant verification of Phone, Bottle, Pizza, or Empty
   const handleSamplePreset = (preset: 'phone' | 'bottle' | 'pizza' | 'empty') => {
     const canvas = document.createElement('canvas');
@@ -749,55 +775,11 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
         className="hidden"
       />
 
-      {/* Viewport Frame */}
-      <div className="relative rounded-2xl overflow-hidden bg-[#070A0F] border border-slate-800/80 shadow-2xl shadow-black/60 aspect-[4/3] max-w-2xl mx-auto w-full transition-all group">
-        {previewImage ? (
-          <img
-            src={previewImage}
-            alt="Inspection Frame"
-            className="w-full h-full object-contain bg-[#070A0F]"
-          />
-        ) : !isCameraOn ? (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-[#070A0F] text-slate-300 p-6 text-center select-none">
-            <div className="w-16 h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center text-3xl mb-3 shadow-inner">
-              📷
-            </div>
-            <h4 className="text-sm sm:text-base font-bold text-white mb-1">Camera is Turned Off</h4>
-            <p className="text-xs text-slate-400 max-w-sm mb-4 leading-relaxed">
-              Webcam feed is paused and hardware camera is disengaged. Turn the camera back on or upload a photo to inspect waste.
-            </p>
-            <button
-              onClick={toggleCamera}
-              className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/20 transition-all cursor-pointer flex items-center gap-2 hover:-translate-y-0.5 active:scale-95"
-            >
-              <span>🎥</span>
-              <span>Turn On Camera</span>
-            </button>
-          </div>
-        ) : (
-          <video
-            ref={videoRef}
-            onLoadedMetadata={handleVideoMetadataLoaded}
-            playsInline
-            muted
-            className="w-full h-full object-cover"
-          />
-        )}
-
-        {/* Bounding Box Overlay Canvas */}
-        <canvas
-          ref={overlayCanvasRef}
-          width={640}
-          height={480}
-          className="absolute inset-0 w-full h-full pointer-events-none z-10"
-        />
-
-        {/* Hidden high-res capture canvas */}
-        <canvas ref={canvasRef} className="hidden" />
-
-        {/* Status Bar Overlay */}
-        <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-20 pointer-events-none gap-2">
-          <div className="flex items-center gap-2 bg-[#0B0F17]/85 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-800/80 text-xs text-white shadow-lg">
+      {/* Viewport Frame Card */}
+      <div className="rounded-2xl overflow-hidden bg-[#070A0F] border border-slate-800/80 shadow-2xl shadow-black/60 max-w-2xl mx-auto w-full flex flex-col transition-all group">
+        {/* Distinct Header Row inside card ABOVE the preview area */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 px-3.5 py-2.5 sm:px-4 sm:py-3 border-b border-slate-800/80 bg-[#0B0F17]/95 backdrop-blur-md z-20 shrink-0">
+          <div className="flex items-center gap-2 bg-[#131B2B]/90 px-3 py-1.5 rounded-full border border-slate-700/60 text-xs text-white shadow-sm">
             <span
               className={`w-2 h-2 rounded-full ${
                 isProcessing
@@ -820,32 +802,129 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
                 ? 'Camera Off • Standby'
                 : isObjectDetectedLive
                 ? '⚡ Object Detected • Frame Active'
-                : 'Live Camera • Auto-Detecting (No Object)'}
+                : 'Live Camera • Auto-Detecting'}
             </span>
           </div>
 
-          <div className="bg-[#0B0F17]/85 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-800/80 text-xs text-slate-300 font-mono shadow-lg">
-            Target: <strong className="text-emerald-400 font-bold">{targetBin}</strong>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Dynamic Status Pill when an inspected result is present */}
+            {lastResult && lastResult.item_detected && lastResult.item_detected !== 'None' && lastResult.correct_bin !== 'Waiting for Item...' && (
+              <span
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold font-mono border shadow-sm transition-all ${
+                  lastResult.box_color === 'green'
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40 shadow-emerald-500/10'
+                    : 'bg-rose-500/15 text-rose-400 border-rose-500/40 shadow-rose-500/10'
+                }`}
+              >
+                <span>{lastResult.box_color === 'green' ? '✓' : '⚠'}</span>
+                <span>{lastResult.box_color === 'green' ? 'CLEAN (PASS)' : 'CONTAMINATED / HAZARD'}</span>
+              </span>
+            )}
+
+            {/* Target Bin Dropdown Selector directly in dedicated Header */}
+            <div className="bg-[#131B2B]/90 px-3 py-1 rounded-full border border-slate-700/60 text-xs text-slate-300 font-mono shadow-sm flex items-center gap-1.5">
+              <span className="text-slate-400 font-bold shrink-0">Target:</span>
+              <select
+                value={targetBin}
+                onChange={(e) => setTargetBin(e.target.value)}
+                className="bg-transparent text-emerald-400 font-bold font-mono focus:outline-none cursor-pointer pr-1"
+                aria-label="Target Bin"
+              >
+                <option value="Auto-Detect" className="bg-slate-900 text-white">Auto-Detect</option>
+                <option value="Dry Recyclable" className="bg-slate-900 text-white">Blue Bin (Dry Recyclable)</option>
+                <option value="Wet Organic" className="bg-slate-900 text-white">Green Bin (Wet Organic)</option>
+              </select>
+            </div>
+
+            {/* Quick Clear preview button if image is loaded */}
+            {previewImage && (
+              <button
+                onClick={handleReset}
+                className="text-[10px] sm:text-[11px] font-mono px-2.5 py-1 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+                title="Clear loaded frame and return to camera"
+              >
+                <span>✕</span>
+                <span>Clear</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Error Notification if camera unavailable and no preview */}
-        {cameraError && !previewImage && isCameraOn && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#070A0F]/95 text-slate-200 p-6 text-center z-30">
-            <span className="text-4xl mb-2">📷</span>
-            <p className="font-semibold text-rose-300 mb-2 text-sm">{cameraError}</p>
-            <p className="text-xs text-slate-400 mb-4 max-w-md leading-relaxed">
-              You can test waste inspection by uploading a photo below, or by using the Quick Test Presets.
-            </p>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center gap-2 hover:-translate-y-0.5 active:scale-95"
-            >
-              <span>📁</span>
-              <span>Upload Photo</span>
-            </button>
-          </div>
-        )}
+        {/* Inspection Feed Preview Area with clean padding */}
+        <div className="relative w-full flex items-center justify-center bg-[#05070B] overflow-hidden min-h-[280px] sm:min-h-[360px] max-h-[540px] p-3 sm:p-4">
+          {previewImage ? (
+            <div className="relative inline-flex items-center justify-center max-w-full max-h-[500px] overflow-hidden rounded-xl">
+              <img
+                src={previewImage}
+                alt="Inspection Frame"
+                onLoad={handleImageLoad}
+                className="max-w-full max-h-[500px] w-auto h-auto object-contain rounded-xl block select-none shadow-lg"
+              />
+              {/* Bounding Box Overlay Canvas - tightly aligned to the image bounds */}
+              <canvas
+                ref={overlayCanvasRef}
+                width={640}
+                height={480}
+                className="absolute inset-0 w-full h-full pointer-events-none z-10"
+              />
+            </div>
+          ) : !isCameraOn ? (
+            <div className="w-full h-full min-h-[260px] sm:min-h-[320px] flex flex-col items-center justify-center bg-[#070A0F] text-slate-300 p-6 text-center select-none rounded-xl">
+              <div className="w-16 h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center text-3xl mb-3 shadow-inner">
+                📷
+              </div>
+              <h4 className="text-sm sm:text-base font-bold text-white mb-1">Camera is Turned Off</h4>
+              <p className="text-xs text-slate-400 max-w-sm mb-4 leading-relaxed">
+                Webcam feed is paused and hardware camera is disengaged. Turn the camera back on or upload a photo to inspect waste.
+              </p>
+              <button
+                onClick={toggleCamera}
+                className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/20 transition-all cursor-pointer flex items-center gap-2 hover:-translate-y-0.5 active:scale-95"
+              >
+                <span>🎥</span>
+                <span>Turn On Camera</span>
+              </button>
+            </div>
+          ) : (
+            <div className="relative inline-flex items-center justify-center max-w-full max-h-[500px] aspect-[4/3] sm:aspect-video w-full rounded-xl overflow-hidden shadow-lg">
+              <video
+                ref={videoRef}
+                onLoadedMetadata={handleVideoMetadataLoaded}
+                playsInline
+                muted
+                className="w-full h-full object-cover rounded-xl block"
+              />
+              {/* Bounding Box Overlay Canvas */}
+              <canvas
+                ref={overlayCanvasRef}
+                width={640}
+                height={480}
+                className="absolute inset-0 w-full h-full pointer-events-none z-10"
+              />
+            </div>
+          )}
+
+          {/* Hidden high-res capture canvas */}
+          <canvas ref={canvasRef} className="hidden" />
+
+          {/* Error Notification if camera unavailable and no preview */}
+          {cameraError && !previewImage && isCameraOn && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#070A0F]/95 text-slate-200 p-6 text-center z-30">
+              <span className="text-4xl mb-2">📷</span>
+              <p className="font-semibold text-rose-300 mb-2 text-sm">{cameraError}</p>
+              <p className="text-xs text-slate-400 mb-4 max-w-md leading-relaxed">
+                You can test waste inspection by uploading a photo below, or by using the Quick Test Presets.
+              </p>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center gap-2 hover:-translate-y-0.5 active:scale-95"
+              >
+                <span>📁</span>
+                <span>Upload Photo</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Controller Buttons Bar */}
@@ -876,7 +955,7 @@ export const CameraInspector: React.FC<CameraInspectorProps> = ({
 
           {/* Camera Stream & File Actions */}
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-start sm:justify-end">
-            {previewImage && isCameraOn && isStreaming && (
+            {previewImage && (
               <button
                 onClick={handleReset}
                 className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-cyan-700 dark:text-cyan-300 hover:bg-slate-300 dark:hover:bg-slate-700 border border-cyan-500/30 flex items-center justify-center gap-1.5 flex-1 sm:flex-initial cursor-pointer hover:-translate-y-0.5 active:scale-95 transition-all shadow-sm whitespace-nowrap"
