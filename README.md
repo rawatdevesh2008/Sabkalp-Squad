@@ -274,3 +274,13 @@ Open `http://localhost:5173` in your browser.
 - **Team:** Sankalp Squad
 - **Frontend URL:** Deployed on Vercel
 - **Backend API URL:** Deployed on Render
+
+---
+## 👥 Team
+
+| Name | Role |
+|------|------|
+| **Garv Ghildiyal** | 👑 Team Leader |
+| **Devesh Singh Rawat** | Team Member |
+| **Abhinav Singh** | Team Member |
+| **Abhinav Chauhan** | Team Member |
