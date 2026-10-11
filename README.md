@@ -388,6 +388,13 @@ cd Sankalp-Squad
 
 ---
 
+## 📰 Blog & Article
+
+📖 **AWS Builder Community Article**:  
+👉 [ShieldBin: Environmental Hacks by WeMakeDevs x AWS](https://builder.aws.com/content/3KXT1CEPVAgnHcT0s1IYswyaABQ/shieldbin-environmental-hacks-by-wemakedevs-x-aws)
+
+---
+
 <div align="center">
 
 **Built with 💚 by Sankalp Squad for a cleaner Bharat.**
